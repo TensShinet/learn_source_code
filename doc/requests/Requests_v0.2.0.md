@@ -223,3 +223,199 @@ def get(url, params={}, headers={}, auth=None):
 ```
 先会实例化一个 Request, Request 类定义在47行。
 
+
+```python
+class Request(object):
+	"""The :class:`Request` object. writtern by Lionel Wang	
+	"""
+	
+	_METHODS = ('GET', 'HEAD', 'PUT', 'POST', 'DELETE')
+	
+	def __init__(self, url, method, data, params):
+		self.url = url
+		self.headers = dict()
+		self.method = method
+		self.params = params
+		self.data = data
+		self.response = Response()
+		self.auth = None
+		self.sent = False
+		
+		if self.method not in _METHODS:
+			raise InvalidMethod
+```
+
+这也是一个好玩的用法，我比较水啦，如果是我，我会直接在类初始化的时候搞定这些...
+就像下面这样。
+
+```python
+class Request(object):
+	"""The :class:`Request` object. writtern by Lionel Wang	
+	"""
+	
+	_METHODS = ('GET', 'HEAD', 'PUT', 'POST', 'DELETE')
+	
+	def __init__(self, url, method, data, params):
+		self.url = url
+		self.headers = dict()
+		self.method = method
+		self.params = params
+		self.data = data
+		self.response = Response()
+		self.auth = None
+		self.sent = False
+		
+		if self.method not in _METHODS:
+			raise InvalidMethod
+```
+
+有没有高人跟我说下这样的好处？
+
+```python
+
+r,auth = _detect_auth(url, auth)
+
+```
+
+权限认证，如果需要的话 ：）
+
+所以重要的逻辑都在 r.send() 里面了，继续～
+
+在Requests.send() 里面，对 method 的不同，做了不一样的处理，我们只看get。
+
+```python
+def send(self, anyway=False):
+		"""Sends the request. Returns True of successfull, false if not.
+		    If there was an HTTPError during transmission,
+		    self.response.status_code will contain the HTTPError code.
+
+		    Once a request is successfully sent, `sent` will equal True.
+		
+		    :param anyway: If True, request will be sent, even if it has
+		    already been sent.
+		"""
+		self._checks()
+
+		success = False
+		
+		if self.method in ('GET', 'HEAD', 'DELETE'):
+			if (not self.sent) or anyway:
+
+				# url encode GET params if it's a dict
+				if isinstance(self.params, dict):
+					params = urllib.urlencode(self.params)
+				else:
+					params = self.params
+
+				req = _Request(("%s?%s" % (self.url, params)), method=self.method)
+
+				if self.headers:
+					req.headers = self.headers
+
+				opener = self._get_opener()
+
+				try:
+					resp = opener(req)
+					self.response.status_code = resp.code
+					self.response.headers = resp.info().dict
+					if self.method.lower() == 'get':
+						self.response.content = resp.read()
+
+					success = True
+				except urllib2.HTTPError, why:
+					self.response.status_code = why.code
+					
+		self.sent = True if success else False
+		
+		return success
+```
+
+self._checks() 是封装了url是否非None 的函数。pass
+
+我估摸着 `anyway` 是作者自己用来测试的 ：）， not self.send 总是会通过if的。
+
+正如作者所说，这个版本封装了urllib, urllib2 的方法，像我这种被reqeusts 宠坏了的人，为了拆他，滚去翻urllib2的文档了 （；￣ェ￣）
+
+```python
+		if isinstance(self.params, dict):
+			params = urllib.urlencode(self.params)
+		else:
+
+			params = self.params
+
+		req = _Request(("%s?%s" % (self.url, params)), method=self.method)
+```
+
+
+如果传过来parms 形如 
+
+```python
+parms ={'age':23, 'name':wsp}, url='www.baidu.com'
+
+
+```
+
+将他转换成 www.baidu.com?age=23&name=wsp
+
+urllib.urlencode(query, [,doseq])
+
+定义为 Convert a mapping object or a sequence of two-element tuples to a “percent-encoded” string,
+将字典或者两个元素的元组，转换成有%的字符串。
+
+
+_Request 是继承了 urllib2.Requsts 的类。
+代码如下
+
+```
+class _Request(urllib2.Request):
+	"""Hidden wrapper around the urllib2.Request object. Allows for manual
+	setting of HTTP methods.
+	"""
+	
+	def __init__(self, url,
+					data=None, headers={}, origin_req_host=None,
+					unverifiable=False, method=None):
+		urllib2.Request.__init__( self, url, data, headers, origin_req_host,
+								  unverifiable)
+	   	self.method = method
+
+	def get_method(self):
+		if self.method:
+			return self.method
+
+		return urllib2.Request.get_method(self)
+```
+
+`self._get_opener()`, 如果需要验证，根据 urllib提供的函数，进行请求的验证，如果不需要，则直接返回 urllib.urlopen 。
+
+接着 `resp = opener(req)` , 等于 `resp = urllib2.urlopen(urllib.Reuqest())`了。即是调用标准库发送请求的真正的方法了。
+
+最后组装返回的类，没什么好说的了
+
+```python
+	self.response.status_code = resp.code
+	self.response.headers = resp.info().dict
+	self.response.content = resp.read()
+```
+
+不过try except 写的很好玩。
+
+```
+except urllib2.HTTPError, why:
+	self.response.status_code = why.code
+```
+
+诚哥说pep8已经不推荐写逗号了，用as, 至少我的ide 会报一个warning, 我想说的是把 `ex` 写出 `why`, 
+这样写好像代码可读性又高了一丢丢哈哈哈，我以后也写成why.
+
+嗯。到了这里 requests v0.2.0 算是看完了～～
+
+
+### 0X06 后记
+
+
+1. 我喵了一眼现在的版本，已经不是基于 urllib 了，肯定会有意思的多；
+2. 这个时候的作者还是很逗比的嘛～ 很多地方都可以抽象的更好一点，但是他直接 copy himself 了，所以我说啊，年轻人，不用怂，有什么想法，赶紧写，出名要趁早，有什么地方有问题，可以给我提issue ，给我看看嘛哈哈哈；
+3. requests 的这个系列我会继续写啊，我对这个小鲜肉变成大叔的历程很感兴趣啊；
+4. 当然啦，每个版本我都会checkout 去看看，但是只会写改动比较大的版本了；
+5. 都看到这里，肯定是真爱啦，赶紧关注我公众号啦混蛋  (((o(*ﾟ▽ﾟ*)o)))
