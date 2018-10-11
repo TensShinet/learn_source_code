@@ -171,8 +171,10 @@ def test_split(self):
 ```
 函数定义：
 assertRaises(exc, fun, *args, **kwds)
-简单介绍一下 split 
-> This is the opposite of concatenation which merges or combines strings into one. 这跟连接合并字符串完全相反
+
+### split 
+> This is the opposite of concatenation which merges or combines strings into one. 
+
 ```python
 x = ‘blue,red,green’
 x.split(“,”)
@@ -223,27 +225,52 @@ def get(url, params={}, headers={}, auth=None):
 ```
 先会实例化一个 Request, Request 类定义在47行。
 
-
-```python
+```py
 class Request(object):
-	"""The :class:`Request` object. writtern by Lionel Wang	
+	"""The :class:`Request` object. It carries out all functionality of
+	Requests. Recommended interface is with the Requests functions.
+	
 	"""
 	
 	_METHODS = ('GET', 'HEAD', 'PUT', 'POST', 'DELETE')
 	
-	def __init__(self, url, method, data, params):
-		self.url = url
+	def __init__(self):
+		self.url = None
 		self.headers = dict()
-		self.method = method
-		self.params = params
-		self.data = data
+		self.method = None
+		self.params = {}
+		self.data = {}
 		self.response = Response()
 		self.auth = None
 		self.sent = False
 		
-		if self.method not in _METHODS:
-			raise InvalidMethod
+	def __repr__(self):
+		try:
+			repr = '<Request [%s]>' % (self.method)
+		except:
+			repr = '<Request object>'
+		return repr
 ```
+
+setattr 的用法 以下内容来自 [StatckOverFlow](https://stackoverflow.com/questions/5755023/why-to-use-setattr-in-python)
+
+Suppose you have a var with the name of the attribute you want to set instead of just knowing the name:
+
+```python
+class A(object):
+    def doSth(self, name, val):
+        setattr(self, name, val)
+```
+impossible to do with self.name = val
+
+Also, a common usage is with keyword args:
+```python
+class A(object):
+    def __init__(self, *args, **kwargs):
+        for k,v in kwargs.items():
+            setattr(self, k, v)
+```
+
 
 这也是一个好玩的用法，我比较水啦，如果是我，我会直接在类初始化的时候搞定这些...
 就像下面这样。
@@ -266,7 +293,20 @@ class Request(object):
 		self.sent = False
 		
 		if self.method not in _METHODS:
-			raise InvalidMethod
+			raise InvalidMethod()
+```
+
+### raise 的用法
+以下内容同样来自[StatckOverFlow](https://stackoverflow.com/questions/2052390/manually-raising-throwing-an-exception-in-python/24065533#24065533)
+
+raise 是手动报错的语法 
+try except 中的 except 是 catch some error
+
+```py
+try:
+    some_code_that_may_raise_our_value_error()
+except ValueError as err:
+    print(err.args)
 ```
 
 有没有高人跟我说下这样的好处？
@@ -350,7 +390,7 @@ self._checks() 是封装了url是否非None 的函数。pass
 如果传过来parms 形如 
 
 ```python
-parms ={'age':23, 'name':wsp}, url='www.baidu.com'
+parms = {'age':23, 'name':wsp}, url='www.baidu.com'
 
 
 ```
@@ -366,7 +406,7 @@ urllib.urlencode(query, [,doseq])
 _Request 是继承了 urllib2.Requsts 的类。
 代码如下
 
-```
+```py
 class _Request(urllib2.Request):
 	"""Hidden wrapper around the urllib2.Request object. Allows for manual
 	setting of HTTP methods.
@@ -421,21 +461,5 @@ except urllib2.HTTPError, why:
 5. 都看到这里，肯定是真爱啦，赶紧关注我公众号啦混蛋  (((o(*ﾟ▽ﾟ*)o)))
 
 
-在这里我想讲讲 setattr 的用法 以下内容来自 [StatckOverFlow](https://stackoverflow.com/questions/5755023/why-to-use-setattr-in-python)
 
-Suppose you have a var with the name of the attribute you want to set instead of just knowing the name:
 
-```python
-class A(object):
-    def doSth(self, name, val):
-        setattr(self, name, val)
-```
-impossible to do with self.name = val
-
-Also, a common usage is with keyword args:
-```python
-class A(object):
-    def __init__(self, *args, **kwargs):
-        for k,v in kwargs.items():
-            setattr(self, k, v)
-```
