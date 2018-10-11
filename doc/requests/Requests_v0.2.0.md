@@ -405,7 +405,7 @@ except urllib2.HTTPError, why:
 	self.response.status_code = why.code
 ```
 
-诚哥说pep8已经不推荐写逗号了，用as, 至少我的ide 会报一个warning, 我想说的是把 `ex` 写出 `why`, 
+诚哥说 pep8 已经不推荐写逗号了，用as, 至少我的ide 会报一个warning, 我想说的是把 `ex` 写出 `why`, 
 这样写好像代码可读性又高了一丢丢哈哈哈，我以后也写成why.
 
 嗯。到了这里 requests v0.2.0 算是看完了～～
@@ -419,3 +419,23 @@ except urllib2.HTTPError, why:
 3. requests 的这个系列我会继续写啊，我对这个小鲜肉变成大叔的历程很感兴趣啊；
 4. 当然啦，每个版本我都会checkout 去看看，但是只会写改动比较大的版本了；
 5. 都看到这里，肯定是真爱啦，赶紧关注我公众号啦混蛋  (((o(*ﾟ▽ﾟ*)o)))
+
+
+在这里我想讲讲 setattr 的用法 以下内容来自 [StatckOverFlow](https://stackoverflow.com/questions/5755023/why-to-use-setattr-in-python)
+
+Suppose you have a var with the name of the attribute you want to set instead of just knowing the name:
+
+```python
+class A(object):
+    def doSth(self, name, val):
+        setattr(self, name, val)
+```
+impossible to do with self.name = val
+
+Also, a common usage is with keyword args:
+```python
+class A(object):
+    def __init__(self, *args, **kwargs):
+        for k,v in kwargs.items():
+            setattr(self, k, v)
+```
