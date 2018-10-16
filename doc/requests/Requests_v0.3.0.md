@@ -205,23 +205,24 @@ f = io.StringIO("some initial text data")
 
 也就是说，在post和put方法里面加入files 参数来支持，可以是StirngIO类型，也可以是File类型（maybe），上源码细节。
 
+
+```python
+elif self.method == 'POST':
+    if (not self.sent) or anyway:
+
+        if self.files:
+            register_openers()
+            datagen, headers = multipart_encode(self.files)
+            req = _Request(self.url, data=datagen, headers=headers, method='POST')
+
+            if self.headers:
+                req.headers.update(self.headers)
+        
+        else:
+            req = _Request(self.url, method='POST')
+            req.headers = self.headers
 ```
-		elif self.method == 'POST':
-			if (not self.sent) or anyway:
 
-				if self.files:
-					register_openers()
-					datagen, headers = multipart_encode(self.files)
-					req = _Request(self.url, data=datagen, headers=headers, method='POST')
-
-					if self.headers:
-						req.headers.update(self.headers)
-				
-				else:
-					req = _Request(self.url, method='POST')
-					req.headers = self.headers
-
-```
 加了一层 if self.files 的判断，进入后做了两件事。 1. register_opener(), 2. multipart_encode(self.files)
 
 这两个函数，又是调用了另一个轮子...这两个代码文件直接被copy到requests/packages中。这个轮子的作者是 Chris AtLee，我去他 github 扒了一下，并不能找到这个仓库。感谢他让我几个小时欲仙欲死 ：）
@@ -237,7 +238,7 @@ f = io.StringIO("some initial text data")
 >大概意思就是 : 当文件太长，HTTP无法在一个包之内发送完毕，就需要分割数据，分割成一个一个chunk发送给服务端，那么--用于区分数据快，而后面的数据633e61ebf351484f9124d63ce76d8469(这是一个随机字符串 也就是文章里面说的 boundry 用来分割数据)就是标示区分包作用。
 
 
-```
+```python
 def multipart_encode(params, boundary=None, cb=None):
     if boundary is None:
         boundary = gen_boundary()	# 生成随机字符串作为 boundary
@@ -248,14 +249,13 @@ def multipart_encode(params, boundary=None, cb=None):
     params = MultipartParam.from_params(params) 
 
     return multipart_yielder(params, boundary, cb), headers # 返回迭代器和头信息
-
 ```
 
 ** 加了request.url 的暴露 **
 	
 在Response 类中加入了 url。
 	
-```
+```python
 	self.response.url = resp.url
 ```
 
@@ -269,20 +269,20 @@ def multipart_encode(params, boundary=None, cb=None):
 
 v0.2.1
 
-```
-				try:
-					opener = self._get_opener()
-					resp =  opener(req)
+```python
+try:
+    opener = self._get_opener()
+    resp =  opener(req)
 
-					self.response.status_code = resp.code
-					self.response.headers = resp.info().dict
-					self.response.content = resp.read()
-					self.response.url = resp.url
+    self.response.status_code = resp.code
+    self.response.headers = resp.info().dict
+    self.response.content = resp.read()
+    self.response.url = resp.url
 
-					success = True
+    success = True
 
-				except urllib2.HTTPError as why:
-					self.response.status_code = why.code
+except urllib2.HTTPError as why:
+    self.response.status_code = why.code
 ```
 
 当 resp = opener(req) 出现问题时（即进入 except 时），只返回了状态码。
@@ -290,15 +290,15 @@ v0.2.1
 
 v0.2.2
 
-```
-				try:
-					resp = opener(req)
-					self._build_response(resp)
-					success = True
+```py
+try:
+    resp = opener(req)
+    self._build_response(resp)
+    success = True
 
-				except urllib2.HTTPError as why:
-					self._build_response(why)
-					success = False
+except urllib2.HTTPError as why:
+    self._build_response(why)
+    success = False
 ```
 修复问题，封装一个返回函数～
 
@@ -306,7 +306,7 @@ v0.2.2
 
 在 core 代码最顶部加了如下部分。
 
-```
+```py
 try:
 	import eventlet
 	eventlet.monkey_patch()
@@ -319,7 +319,6 @@ if not 'eventlet' in locals():
 		monkey.patch_all()
 	except ImportError:
 		pass
-
 ```
 
 此外找不到跟这个有关系的东西。难道只要import就好了？这么黑科技？
@@ -337,18 +336,18 @@ if not 'eventlet' in locals():
 
 同样以get 举例
 
-```
+```py
 r.cookiejar = cookies
 ```
 加入了cookies 参数
 
-```
+```py
 if self.cookiejar:
 
 	cookie_handler = urllib2.HTTPCookieProcessor(cookiejar)
 	_handlers.append(cookie_handler)
 	opener = urllib2.build_opener(*_handlers)
-			return opener.open
+    return opener.open
 
 ```
 
@@ -371,7 +370,7 @@ if self.cookiejar:
 
 改进了类  Response 的表现形式。来看一下对新的 Response 类的新加的测试内容,第一个测试。
 
-```
+```py
 	def test_nonzero_evaluation(self):
 		r = requests.get('http://google.com/some-404-url')
 		self.assertEqual(bool(r), False)
@@ -382,7 +381,7 @@ if self.cookiejar:
 
  对返回的 Response 类进行 bool 运算，相关实现代码如下。
 
-```
+```python
 	def __nonzero__(self):
 		"""Returns true if status_code is 'OK'."""
 		return not self.error
@@ -393,7 +392,7 @@ if self.cookiejar:
 
 当调用opener(resq)的时候，出现异常，会更改self.error 变量。
 
-```
+```py
 try:
 	resp = opener(req)
 	self._build_response(resp)
@@ -407,7 +406,7 @@ except urllib2.HTTPError as why:
 
 第二个测试。
 
-```
+```py
 def test_request_ok_set(self):
 	r = requests.get('http://google.com/some-404-url')
 	self.assertEqual(r.ok, False)
@@ -417,7 +416,7 @@ def test_request_ok_set(self):
 
 第三个测试
 
-```
+```py
 def test_status_raising(self):
 	r = requests.get('http://google.com/some-404-url')
 	self.assertRaises(requests.HTTPError, r.raise_for_status)
@@ -429,7 +428,7 @@ def test_status_raising(self):
 ```
 相应代码：
 
-```
+```py
 	def raise_for_status(self):
 		"""Raises stored HTTPError if one exists."""
 		if self.error:
@@ -459,7 +458,21 @@ def test_status_raising(self):
  ** 3. 自动验证测试 **
 这个版本最主要的改动，就是优化了测试文件。把测试文件改成了继承 TestSite的类（话说这不是常识吗...）
 
+### 我刚刚学会了 如何在 python 中写 [单元测试](https://medium.freecodecamp.org/learning-to-test-with-python-997ace2d8abe)
+简单来说
+```py
+# first step
+import unittest
+# second step import your code
+from mycode import *
+# third step define your test class and inherit the subattribute of unittest
+class MyFirstTests(unittest.TestCase): 
+    def test_xxx(self):
+        self.assertEqual()
 ```
+
+
+```py
 
 class RequestsTestSuite(unittest.TestCase):
     """Requests test cases."""
@@ -482,7 +495,7 @@ class RequestsTestSuite(unittest.TestCase):
 
 哈哈哈，我上一遍质疑他的东西，果然在五天后就改过来了～
 
-```
+```py
 class Request(object):
     """The :class:`Request` object. It carries out all functionality of
     Requests. Recommended interface is with the Requests functions.
@@ -533,39 +546,39 @@ class Request(object):
 
 之前
 
-```
-    def test_AUTH_HTTPS_200_OK_GET(self):
-        auth = requests.AuthObject('requeststest', 'requeststest')
-        url = 'https://convore.com/api/account/verify.json'
-        r = requests.get(url, auth=auth)
+```py
+def test_AUTH_HTTPS_200_OK_GET(self):
+    auth = requests.AuthObject('requeststest', 'requeststest')
+    url = 'https://convore.com/api/account/verify.json'
+    r = requests.get(url, auth=auth)
 
-        self.assertEqual(r.status_code, 200)
+    self.assertEqual(r.status_code, 200)
 
 
-        requests.add_autoauth(url, auth)
+    requests.add_autoauth(url, auth)
 
-        r = requests.get(url)
-        self.assertEqual(r.status_code, 200)
+    r = requests.get(url)
+    self.assertEqual(r.status_code, 200)
 
-        # reset auto authentication
-        requests.AUTOAUTHS = []
+    # reset auto authentication
+    requests.AUTOAUTHS = []
 ```
 
 现在
 
-```
-	def test_AUTH_HTTPS_200_OK_GET(self):
-        auth = ('requeststest', 'requeststest')
-        url = 'https://convore.com/api/account/verify.json'
-        r = requests.get(url, auth=auth)
+```py
+def test_AUTH_HTTPS_200_OK_GET(self):
+    auth = ('requeststest', 'requeststest')
+    url = 'https://convore.com/api/account/verify.json'
+    r = requests.get(url, auth=auth)
 
-        self.assertEqual(r.status_code, 200)
+    self.assertEqual(r.status_code, 200)
 
-        r = requests.get(url)
-        self.assertEqual(r.status_code, 200)
+    r = requests.get(url)
+    self.assertEqual(r.status_code, 200)
 
-        # reset auto authentication
-        requests.auth_manager.empty()
+    # reset auto authentication
+    requests.auth_manager.empty()
 ```
 
 可以看到，
@@ -582,7 +595,7 @@ class Request(object):
 
 关于这一点更新，体现在这个测试中
 
-```
+```py
     def test_HTTP_200_OK_GET_WITH_MIXED_PARAMS(self):
         heads = {'User-agent': 'Mozilla/5.0'}
         r = requests.get('http://google.com/search?test=true', params={'q': 'test'}, headers=heads)
@@ -593,24 +606,24 @@ class Request(object):
 
 send中 
 
-```
+```py
 if self.method in ('GET', 'HEAD', 'DELETE'):
-            req = _Request(self._build_url(self.url, self._enc_data), method=self.method)
+    req = _Request(self._build_url(self.url, self._enc_data), method=self.method)
 ```
 self._build_url() 
 
-```
-    @staticmethod
-    def _build_url(url, data):
-        """Build URLs."""
-        
-        if urlparse(url).query:
-            return '%s&%s' % (url, data)
+```py
+@staticmethod
+def _build_url(url, data):
+    """Build URLs."""
+    
+    if urlparse(url).query:
+        return '%s&%s' % (url, data)
+    else:
+        if data:
+            return '%s?%s' % (url, data)
         else:
-            if data:
-                return '%s?%s' % (url, data)
-            else:
-                return url
+            return url
 ```
 
 调用了标准库 urlparse ，逻辑大概为，如果url 里面有参数，把data的key,value 以&加到后面，否则，以？加到后面。
@@ -620,7 +633,7 @@ self._build_url()
 
 这一点更新，跟上一点差不多。代码如下。
 
-```
+```py
 if self.files:
 	register_openers()
     if self.data:
@@ -638,7 +651,7 @@ if self.files:
 
 首先是Request 初始化时，关于Auth 的细节。
 
-```
+```py
 class Reuqest(object):
 
 	def __init__(self):
@@ -662,7 +675,7 @@ auth_manager 是一个全局的 AuthManager() 对象。
 
 代码如下
 
-```
+```py
 class AuthManager(object):
     """Authentication Manager."""
     
@@ -686,7 +699,25 @@ class AuthManager(object):
 
 基本在这个函数中，可窥一斑。
 
+# 不是很懂[单例](http://funhacks.net/2017/01/17/singleton/)
+```py
+class Singleton(object):
+    _instance = None
+    @classmethod
+    def __new__(cls, *args, **kw):
+        if not cls._instance:
+            cls._instance = super(Singleton, cls).__new__(cls, *args, **kw)  
+        return cls._instance  
+class MyClass(Singleton):  
+    a = 1
+
+one = MyClass()
+two = MyClass()
+
+one is two # true
 ```
+
+```py
 def reduce_uri(self, uri, default_port=True):
         """Accept authority or URI and extract only the authority and path."""
         # note HTTP URLs do not have a userinfo component
@@ -713,6 +744,10 @@ def reduce_uri(self, uri, default_port=True):
 
 将 （域名＋端口， 路径） 作为key, 保存 auth 信息，如果请求参数没有 auth,默认都会进来查找一次。
 
+### 很奇怪这个函数的参数是 uri
+我去查了一下
+> A URI can be further classified as a locator, a name, or both. The term “Uniform Resource Locator” (URL) refers to the subset of URIs that, in addition to identifying a resource, provide a means of locating the resource by describing its primary access mechanism
+大概意思就是 跟 URL 没什么区别 只是 URL(类似这样的 https://baidu.com/ )是 URI 的子集 也就是说 URI 在格式上更加随便一点
 
 
 0X03
